@@ -1,65 +1,103 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
 
 export default function Home() {
+  const [steamId, setSteamId] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+        
+    // Basic validation
+    if (!steamId.trim()) {
+      setError("Please enter a Steam ID");
+      return;
+    }
+
+    setError(null);
+    setIsLoading(true);
+
+    // TODO: Steam API integration will go here
+    // For now, just simulate loading
+    setTimeout(() => {
+      setIsLoading(false);
+      console.log("Steam ID submitted:", steamId);
+          }, 1000);
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+      <div className="container mx-auto px-4 py-16">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <h1 className="text-5xl md:text-7xl font-bold mb-4 bg-gradient-to-r from-orange-400 via-pink-500 to-red-500 bg-clip-text text-transparent">
+            Steam Library Roaster
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-xl text-gray-300 max-w-2xl mx-auto">
+            Your Steam library has secrets. We&apos;re here to expose them. 🔥
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+                {/* Input Form */}
+        <div className="max-w-md mx-auto bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label 
+                htmlFor="steamId" 
+                className="block text-sm font-medium text-gray-300 mb-2"
+              >
+                Enter Your Steam ID
+              </label>
+              <input
+                type="text"
+                id="steamId"
+                value={steamId}
+                                onChange={(e) => setSteamId(e.target.value)}
+                placeholder="76561198xxxxxxxxxx"
+                className="w-full px-4 py-3 rounded-lg bg-black/30 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
+              />
+              <p className="mt-2 text-sm text-gray-400">
+                Find your Steam ID at{" "}
+                <a 
+                  href="https://steamid.io" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-pink-400 hover:text-pink-300 underline"
+                >
+                  steamid.io
+                </a>
+              </p>
+                          </div>
+
+            {error && (
+              <div className="p-3 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 text-sm">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-3 px-6 rounded-lg bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white font-semibold text-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+            >
+{isLoading ? (
+  <span className="flex items-center justify-center gap-2">
+    <span className="animate-spin">⏳</span>
+    Connecting...
+  </span>
+) : (
+  "Roast My Library 🔥"
+)}
+            </button>
+          </form>
         </div>
-      </main>
-    </div>
+
+        {/* Footer */}
+        <div className="mt-16 text-center text-gray-400 text-sm">
+          <p>Built with ❤️ and 🔥 by David</p>
+        </div>
+      </div>
+    </main>
   );
 }
