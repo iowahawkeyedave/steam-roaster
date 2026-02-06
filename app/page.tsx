@@ -75,7 +75,7 @@ export default function Home() {
       setRoast(data.roast);
     } catch (err) {
       console.error("Roast error:", err);
-      setRoast("Even the AI is too embarrassed to roast this library. That's saying something.");
+            setRoast(`Roast generation failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
           } finally {
       setIsRoasting(false);
     }
