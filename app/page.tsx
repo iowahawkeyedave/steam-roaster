@@ -2,15 +2,22 @@
 
 import { useState } from "react";
 
+interface SteamGame {
+  appid: number;
+  name: string;
+  playtime_forever: number;
+  playtime_2weeks?: number;
+}
+
 export default function Home() {
   const [steamId, setSteamId] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [games, setGames] = useState<SteamGame[] | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-        
-    // Basic validation
+    
     if (!steamId.trim()) {
       setError("Please enter a Steam ID");
       return;
@@ -18,14 +25,36 @@ export default function Home() {
 
     setError(null);
     setIsLoading(true);
+    setGames(null);
+        try {
+      const response = await fetch("/api/steam/library", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ steamId }),
+      });
 
-    // TODO: Steam API integration will go here
-    // For now, just simulate loading
-    setTimeout(() => {
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || "Failed to fetch library");
+      }
+            setGames(data.games);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
       setIsLoading(false);
-      console.log("Steam ID submitted:", steamId);
-          }, 1000);
+    }
   };
+
+  const formatPlaytime = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    if (hours < 1) return `${minutes}m`;
+    if (hours < 24) return `${hours}h`;
+    const days = Math.floor(hours / 24);
+    return `${days}d`;
+      };
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
@@ -40,7 +69,7 @@ export default function Home() {
           </p>
         </div>
                 {/* Input Form */}
-        <div className="max-w-md mx-auto bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
+        <div className="max-w-md mx-auto bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 mb-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label 
@@ -53,8 +82,8 @@ export default function Home() {
                 type="text"
                 id="steamId"
                 value={steamId}
-                                onChange={(e) => setSteamId(e.target.value)}
-                placeholder="76561198xxxxxxxxxx"
+                onChange={(e) => setSteamId(e.target.value)}
+                                placeholder="76561198xxxxxxxxxx"
                 className="w-full px-4 py-3 rounded-lg bg-black/30 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
               />
               <p className="mt-2 text-sm text-gray-400">
@@ -68,9 +97,8 @@ export default function Home() {
                   steamid.io
                 </a>
               </p>
-                          </div>
-
-            {error && (
+            </div>
+                        {error && (
               <div className="p-3 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 text-sm">
                 {error}
               </div>
@@ -81,19 +109,54 @@ export default function Home() {
               disabled={isLoading}
               className="w-full py-3 px-6 rounded-lg bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white font-semibold text-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]"
             >
-{isLoading ? (
-  <span className="flex items-center justify-center gap-2">
-    <span className="animate-spin">⏳</span>
-    Connecting...
-  </span>
-) : (
-  "Roast My Library 🔥"
-)}
+              {isLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="animate-spin">⏳</span>
+                                    Connecting...
+                </span>
+              ) : (
+                "Roast My Library 🔥"
+              )}
             </button>
           </form>
         </div>
 
-        {/* Footer */}
+        {/* Results */}
+        {games && (
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-2xl font-bold mb-6 text-center">
+              Found {games.length} games
+            </h2>
+                        
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {games.slice(0, 12).map((game) => (
+                <div 
+                  key={game.appid}
+                  className="bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20 hover:bg-white/15 transition-all"
+                >
+                  <h3 className="font-semibold text-lg mb-2 line-clamp-1">
+                    {game.name}
+                  </h3>
+                  <p className="text-gray-400 text-sm">
+                    {formatPlaytime(game.playtime_forever)} played
+                  </p>
+                  {game.playtime_2weeks && game.playtime_2weeks > 0 && (
+                    <p className="text-green-400 text-xs mt-1">
+                      {formatPlaytime(game.playtime_2weeks)} recently
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            {games.length > 12 && (
+              <p className="text-center text-gray-400 mt-6">
+                + {games.length - 12} more games...
+              </p>
+            )}
+          </div>
+        )}
+                {/* Footer */}
         <div className="mt-16 text-center text-gray-400 text-sm">
           <p>Built with ❤️ and 🔥 by David</p>
         </div>
