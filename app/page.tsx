@@ -242,7 +242,7 @@ export default function Home() {
                 htmlFor="steamId" 
                 className="block text-sm font-medium text-slate-300 mb-2"
               >
-                Enter Your Steam ID
+                Enter Your Steam ID64
               </label>
               <input
                 type="text"
@@ -253,7 +253,7 @@ export default function Home() {
                 className="w-full px-4 py-3 rounded-xl bg-slate-950/50 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all"
               />
               <p className="mt-2 text-sm text-slate-500">
-                Find your Steam ID at{" "}
+                Find your Steam ID64 at{" "}
                 <a
                   href="https://steamid.io"
                   target="_blank"
