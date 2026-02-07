@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { toPng } from "html-to-image";
 import LoadingSpinner from "@/app/components/LoadingSpinner";
 import ErrorMessage from "@/app/components/ErrorMessage";
 
@@ -11,6 +12,31 @@ interface SteamGame {
   playtime_2weeks?: number;
 }
 
+// Tier-specific color schemes
+const tierStyles = {
+  light: {
+    gradient: "from-emerald-500/30 via-teal-500/20 to-cyan-500/30",
+    border: "border-emerald-500/50",
+    glow: "shadow-emerald-500/20",
+    badge: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+    accent: "text-emerald-400",
+  },
+  medium: {
+    gradient: "from-amber-500/30 via-orange-500/20 to-red-500/30",
+    border: "border-amber-500/50",
+    glow: "shadow-amber-500/20",
+    badge: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+    accent: "text-amber-400",
+  },
+  brutal: {
+    gradient: "from-red-600/40 via-rose-500/30 to-pink-600/40",
+    border: "border-red-500/60",
+    glow: "shadow-red-500/30",
+    badge: "bg-red-500/20 text-red-300 border-red-500/30",
+    accent: "text-red-400",
+  },
+};
+
 export default function Home() {
   const [steamId, setSteamId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -20,6 +46,10 @@ export default function Home() {
   const [roast, setRoast] = useState<string | null>(null);
   const [roastTier, setRoastTier] = useState<"light" | "medium" | "brutal">("medium");
   const [errorType, setErrorType] = useState<"steam" | "roast" | "network" | "validation">("network");
+  const [copied, setCopied] = useState(false);
+  const [totalPlaytime, setTotalPlaytime] = useState(0);
+  
+  const roastCardRef = useRef<HTMLDivElement>(null);
 
   const handleRetry = () => {
     setError(null);
@@ -31,11 +61,11 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-if (!steamId.trim()) {
-  setError("Please enter a valid Steam ID");
-    setErrorType("validation");
-  return;
-}
+    if (!steamId.trim()) {
+      setError("Please enter a valid Steam ID");
+      setErrorType("validation");
+      return;
+    }
 
     setError(null);
     setIsLoading(true);
@@ -58,6 +88,9 @@ if (!steamId.trim()) {
       }
 
       setGames(data.games);
+      // Calculate total playtime
+      const total = data.games.reduce((sum: number, game: SteamGame) => sum + game.playtime_forever, 0);
+      setTotalPlaytime(total);
       // Auto-generate roast after fetching games
       await generateRoast(data.games, roastTier);
     } catch (err) {
@@ -108,26 +141,106 @@ if (!steamId.trim()) {
     return `${days}d`;
   };
 
+  const formatHours = (minutes: number) => {
+    return Math.floor(minutes / 60).toLocaleString();
+  };
+
+  // Share functionality
+  const handleCopyRoast = async () => {
+    if (!roast) return;
+    const text = `"${roast}" — Roasted by Steam Library Roaster 🔥`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
+  const handleDownloadPNG = async () => {
+    if (!roastCardRef.current) return;
+    
+    try {
+      const dataUrl = await toPng(roastCardRef.current, {
+        quality: 0.95,
+        backgroundColor: "#0f0f1a",
+        pixelRatio: 2,
+      });
+      
+      const link = document.createElement("a");
+      link.download = `steam-roast-${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error("Failed to generate PNG:", err);
+    }
+  };
+
+  const handleShareTwitter = () => {
+    if (!roast) return;
+    const text = encodeURIComponent(`"${roast.substring(0, 200)}${roast.length > 200 ? '...' : ''}" 🔥`);
+    const url = encodeURIComponent("https://steam-roaster.vercel.app");
+    const hashtags = "SteamRoaster,Gaming";
+    window.open(
+      `https://twitter.com/intent/tweet?text=${text}&url=${url}&hashtags=${hashtags}`,
+      "_blank",
+      "width=600,height=400"
+    );
+  };
+
+  const handleShareReddit = () => {
+    if (!roast) return;
+    const title = encodeURIComponent(`My Steam library got roasted: "${roast.substring(0, 100)}${roast.length > 100 ? '...' : ''}"`);
+    const url = encodeURIComponent("https://steam-roaster.vercel.app");
+    window.open(
+      `https://www.reddit.com/submit?title=${title}&url=${url}`,
+      "_blank",
+      "width=600,height=400"
+    );
+  };
+
+  const handleShareFacebook = () => {
+    const url = encodeURIComponent("https://steam-roaster.vercel.app");
+    window.open(
+      `https://www.facebook.com/sharer/sharer.php?u=${url}`,
+      "_blank",
+      "width=600,height=400"
+    );
+  };
+
+  const styles = tierStyles[roastTier];
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
-      <div className="container mx-auto px-4 py-16">
+    <main className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
+      {/* Animated background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-pink-500/10 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative container mx-auto px-4 py-16">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-5xl md:text-7xl font-bold mb-4 bg-gradient-to-r from-orange-400 via-pink-500 to-red-500 bg-clip-text text-transparent">
-            Steam Library Roaster
+          <h1 className="text-5xl md:text-7xl font-black mb-4 tracking-tight">
+            <span className="bg-gradient-to-r from-orange-400 via-pink-500 to-red-500 bg-clip-text text-transparent">
+              Steam Library
+            </span>
+            <br />
+            <span className="text-white">Roaster</span>
           </h1>
-          <p className="text-xl text-gray-300 max-w-2xl mx-auto">
+          <p className="text-xl text-slate-400 max-w-2xl mx-auto font-light">
             Your Steam library has secrets. We&apos;re here to expose them. 🔥
           </p>
         </div>
 
         {/* Input Form */}
-        <div className="max-w-md mx-auto bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 mb-8">
+        <div className="max-w-md mx-auto bg-slate-900/50 backdrop-blur-xl rounded-2xl p-8 border border-slate-700/50 mb-8 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label 
                 htmlFor="steamId" 
-                className="block text-sm font-medium text-gray-300 mb-2"
+                className="block text-sm font-medium text-slate-300 mb-2"
               >
                 Enter Your Steam ID
               </label>
@@ -137,9 +250,9 @@ if (!steamId.trim()) {
                 value={steamId}
                 onChange={(e) => setSteamId(e.target.value)}
                 placeholder="76561198xxxxxxxxxx"
-                className="w-full px-4 py-3 rounded-lg bg-black/30 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 rounded-xl bg-slate-950/50 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500/50 transition-all"
               />
-              <p className="mt-2 text-sm text-gray-400">
+              <p className="mt-2 text-sm text-slate-500">
                 Find your Steam ID at{" "}
                 <a
                   href="https://steamid.io"
@@ -154,7 +267,7 @@ if (!steamId.trim()) {
 
             {/* Roast Tier Selector */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-slate-300 mb-3">
                 Roast Intensity
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -163,10 +276,14 @@ if (!steamId.trim()) {
                     key={tier}
                     type="button"
                     onClick={() => handleTierChange(tier)}
-                    className={`py-2 px-4 rounded-lg text-sm font-medium transition-all capitalize ${
+                    className={`py-2.5 px-4 rounded-xl text-sm font-semibold transition-all capitalize ${
                       roastTier === tier
-                        ? "bg-pink-500 text-white"
-                        : "bg-white/10 text-gray-300 hover:bg-white/20"
+                        ? tier === "light" 
+                          ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/25"
+                          : tier === "medium"
+                          ? "bg-amber-500 text-white shadow-lg shadow-amber-500/25"
+                          : "bg-red-500 text-white shadow-lg shadow-red-500/25"
+                        : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200"
                     }`}
                   >
                     {tier}
@@ -182,7 +299,7 @@ if (!steamId.trim()) {
             <button
               type="submit"
               disabled={isLoading || isRoasting}
-              className="w-full py-3 px-6 rounded-lg bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white font-semibold text-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+              className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white font-bold text-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-purple-500/25"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -209,30 +326,115 @@ if (!steamId.trim()) {
           )}
         </div>
 
-        {/* Roast Card */}
+        {/* Polished Roast Card */}
         {roast && (
-          <div className="max-w-2xl mx-auto mb-12">
-            <div className="bg-gradient-to-br from-orange-500/20 via-pink-500/20 to-purple-500/20 backdrop-blur-lg rounded-2xl p-8 border-2 border-pink-500/50">
-              <div className="text-center mb-4">
-                <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                  roastTier === "light" ? "bg-green-500/20 text-green-300" :
-                  roastTier === "medium" ? "bg-yellow-500/20 text-yellow-300" :
-                  "bg-red-500/20 text-red-300"
-                }`}>
-                  {roastTier} Roast
-                </span>
+          <div className="max-w-lg mx-auto mb-12">
+            {/* Card Container with Glow */}
+            <div className={`relative group`}>
+              {/* Glow effect */}
+              <div className={`absolute -inset-1 bg-gradient-to-r ${styles.gradient} rounded-3xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity duration-500`} />
+              
+              {/* Main Card */}
+              <div 
+                ref={roastCardRef}
+                className={`relative bg-gradient-to-br ${styles.gradient} backdrop-blur-xl rounded-3xl p-1`}
+              >
+                <div className="bg-slate-950/90 rounded-[22px] p-8">
+                  {/* Header */}
+                  <div className="flex justify-between items-center mb-6">
+                    <span className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border ${styles.badge}`}>
+                      {roastTier} Roast
+                    </span>
+                    <span className="text-xs text-slate-500 font-mono">
+                      steam-roaster.vercel.app
+                    </span>
+                  </div>
+
+                  {/* Stats Row */}
+                  {games && (
+                    <div className="flex justify-center gap-8 mb-6 pb-6 border-b border-slate-800">
+                      <div className="text-center">
+                        <p className={`text-2xl font-black ${styles.accent}`}>
+                          {games.length}
+                        </p>
+                        <p className="text-xs text-slate-500 uppercase tracking-wider">Games</p>
+                      </div>
+                      <div className="text-center">
+                        <p className={`text-2xl font-black ${styles.accent}`}>
+                          {formatHours(totalPlaytime)}h
+                        </p>
+                        <p className="text-xs text-slate-500 uppercase tracking-wider">Played</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Roast Quote */}
+                  <div className="relative">
+                    <span className={`absolute -top-2 -left-2 text-6xl ${styles.accent} opacity-20 font-serif`}>
+                      &ldquo;
+                    </span>
+                    <p className="text-xl md:text-2xl text-center font-medium leading-relaxed text-white py-4 px-4">
+                      {roast}
+                    </p>
+                    <span className={`absolute -bottom-8 -right-2 text-6xl ${styles.accent} opacity-20 font-serif`}>
+                      &rdquo;
+                    </span>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="mt-8 pt-6 border-t border-slate-800 flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">🔥</span>
+                      <span className="text-sm font-bold text-slate-300">Steam Library Roaster</span>
+                    </div>
+                    <span className="text-xs text-slate-600">
+                      {new Date().toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <p className="text-xl md:text-2xl text-center font-medium leading-relaxed text-white">
-                &ldquo;{roast}&rdquo;
-              </p>
-              <div className="mt-6 flex justify-center gap-3">
-                <button
-                  onClick={() => navigator.clipboard.writeText(`"${roast}" — Roasted by Steam Library Roaster 🔥`)}
-                  className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition-all"
-                >
-                  📋 Copy
-                </button>
-              </div>
+            </div>
+
+            {/* Share Buttons */}
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <button
+                onClick={handleCopyRoast}
+                className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${
+                  copied 
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" 
+                    : "bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700"
+                }`}
+              >
+                {copied ? "✅ Copied!" : "📋 Copy"}
+              </button>
+
+              <button
+                onClick={handleDownloadPNG}
+                className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 text-sm font-semibold transition-all flex items-center gap-2"
+              >
+                🖼️ Save PNG
+              </button>
+
+              <button
+                onClick={handleShareTwitter}
+                className="px-4 py-2.5 rounded-xl bg-[#1DA1F2]/10 hover:bg-[#1DA1F2]/20 text-[#1DA1F2] border border-[#1DA1F2]/30 text-sm font-semibold transition-all flex items-center gap-2"
+              >
+                🐦 X
+              </button>
+
+              <button
+                onClick={handleShareReddit}
+                className="px-4 py-2.5 rounded-xl bg-[#FF4500]/10 hover:bg-[#FF4500]/20 text-[#FF4500] border border-[#FF4500]/30 text-sm font-semibold transition-all flex items-center gap-2"
+              >
+                🔴 Reddit
+              </button>
+
+              <button
+                onClick={handleShareFacebook}
+                className="px-4 py-2.5 rounded-xl bg-[#1877F2]/10 hover:bg-[#1877F2]/20 text-[#1877F2] border border-[#1877F2]/30 text-sm font-semibold transition-all flex items-center gap-2"
+              >
+                📘 FB
+              </button>
             </div>
           </div>
         )}
@@ -240,32 +442,35 @@ if (!steamId.trim()) {
         {/* Games List */}
         {games && (
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold mb-6 text-center">
-              Your Library ({games.length} games)
+            <h2 className="text-2xl font-bold mb-6 text-center text-slate-300">
+              Your Library
+              <span className="text-slate-500 text-lg font-normal"> ({games.length} games)</span>
             </h2>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {games.slice(0, 12).map((game) => (
                 <div 
                   key={game.appid}
-                  className="bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20 hover:bg-white/15 transition-all"
+                  className="bg-slate-900/50 backdrop-blur-lg rounded-xl p-4 border border-slate-800 hover:border-slate-700 hover:bg-slate-800/50 transition-all group"
                 >
-                  <h3 className="font-semibold text-lg mb-2 line-clamp-1">
+                  <h3 className="font-semibold text-lg mb-2 line-clamp-1 text-slate-200 group-hover:text-white transition-colors">
                     {game.name}
                   </h3>
-                  <p className="text-gray-400 text-sm">
-                    {formatPlaytime(game.playtime_forever)} played
-                  </p>
-                  {game.playtime_2weeks && game.playtime_2weeks > 0 && (
-                    <p className="text-green-400 text-xs mt-1">
-                      {formatPlaytime(game.playtime_2weeks)} recently
+                  <div className="flex justify-between items-center">
+                    <p className="text-slate-500 text-sm">
+                      {formatPlaytime(game.playtime_forever)} played
                     </p>
-                  )}
+                    {game.playtime_2weeks && game.playtime_2weeks > 0 && (
+                      <span className="text-emerald-400 text-xs bg-emerald-500/10 px-2 py-1 rounded-full">
+                        Active
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
             
             {games.length > 12 && (
-              <p className="text-center text-gray-400 mt-6">
+              <p className="text-center text-slate-500 mt-6">
                 + {games.length - 12} more games...
               </p>
             )}
@@ -273,7 +478,7 @@ if (!steamId.trim()) {
         )}
 
         {/* Footer */}
-        <div className="mt-16 text-center text-gray-400 text-sm">
+        <div className="mt-16 text-center text-slate-500 text-sm">
           <p>Built with ❤️ and 🔥 by David</p>
         </div>
       </div>
