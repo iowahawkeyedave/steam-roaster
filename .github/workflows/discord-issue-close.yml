@@ -1,0 +1,18 @@
+# .github/workflows/discord-issue-close.yml
+name: Discord Issue Closed
+
+on:
+  issues:
+    types: [closed]
+
+jobs:
+  discord:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord notification
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -X POST -H 'Content-Type: application/json' \
+          -d '{"content": "🔒 **Issue #${{ github.event.issue.number }}** closed by ${{ github.event.sender.login }}! <@&612779300630036487>\n${{ github.event.issue.html_url }}"}' \ \
+          "$DISCORD_WEBHOOK_URL"
