@@ -16,7 +16,3 @@ jobs:
           curl -X POST -H 'Content-Type: application/json' \
           -d '{"content": "🔒 **Issue #${{ github.event.issue.number }}** closed by ${{ github.event.sender.login }}! ${{ github.event.issue.html_url }}"}' \
           "$DISCORD_WEBHOOK_URL"
-
-          Verify `DISCORD_WEBHOOK_URL` exists and is correct.
-
-
