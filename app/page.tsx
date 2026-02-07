@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import LoadingSpinner from "@/app/components/LoadingSpinner";
+import ErrorMessage from "@/app/components/ErrorMessage";
 
 interface SteamGame {
-    appid: number;
+  appid: number;
   name: string;
   playtime_forever: number;
   playtime_2weeks?: number;
@@ -17,13 +19,23 @@ export default function Home() {
   const [games, setGames] = useState<SteamGame[] | null>(null);
   const [roast, setRoast] = useState<string | null>(null);
   const [roastTier, setRoastTier] = useState<"light" | "medium" | "brutal">("medium");
-    const handleSubmit = async (e: React.FormEvent) => {
+  const [errorType, setErrorType] = useState<"steam" | "roast" | "network" | "validation">("network");
+
+  const handleRetry = () => {
+    setError(null);
+    if (steamId.trim()) {
+      handleSubmit({ preventDefault: () => {} } as React.FormEvent);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!steamId.trim()) {
-      setError("Please enter a Steam ID");
-      return;
-    }
+if (!steamId.trim()) {
+  setError("Please enter a valid Steam ID");
+    setErrorType("validation");
+  return;
+}
 
     setError(null);
     setIsLoading(true);
@@ -32,7 +44,7 @@ export default function Home() {
 
     try {
       const response = await fetch("/api/steam/library", {
-                method: "POST",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
@@ -46,7 +58,7 @@ export default function Home() {
       }
 
       setGames(data.games);
-            // Auto-generate roast after fetching games
+      // Auto-generate roast after fetching games
       await generateRoast(data.games, roastTier);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -61,7 +73,7 @@ export default function Home() {
       const response = await fetch("/api/roast", {
         method: "POST",
         headers: {
-                    "Content-Type": "application/json",
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ games: gamesData, tier }),
       });
@@ -75,8 +87,8 @@ export default function Home() {
       setRoast(data.roast);
     } catch (err) {
       console.error("Roast error:", err);
-            setRoast(`Roast generation failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-          } finally {
+      setRoast(`Roast generation failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
       setIsRoasting(false);
     }
   };
@@ -91,7 +103,7 @@ export default function Home() {
   const formatPlaytime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     if (hours < 1) return `${minutes}m`;
-        if (hours < 24) return `${hours}h`;
+    if (hours < 24) return `${hours}h`;
     const days = Math.floor(hours / 24);
     return `${days}d`;
   };
@@ -106,7 +118,7 @@ export default function Home() {
           </h1>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
             Your Steam library has secrets. We&apos;re here to expose them. 🔥
-                      </p>
+          </p>
         </div>
 
         {/* Input Form */}
@@ -121,7 +133,7 @@ export default function Home() {
               </label>
               <input
                 type="text"
-                                id="steamId"
+                id="steamId"
                 value={steamId}
                 onChange={(e) => setSteamId(e.target.value)}
                 placeholder="76561198xxxxxxxxxx"
@@ -129,14 +141,14 @@ export default function Home() {
               />
               <p className="mt-2 text-sm text-gray-400">
                 Find your Steam ID at{" "}
-                <a 
-                  href="https://steamid.io" 
-                  target="_blank" 
+                <a
+                  href="https://steamid.io"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-pink-400 hover:text-pink-300 underline"
                 >
                   steamid.io
-                                  </a>
+                </a>
               </p>
             </div>
 
@@ -151,7 +163,7 @@ export default function Home() {
                     key={tier}
                     type="button"
                     onClick={() => handleTierChange(tier)}
-                                        className={`py-2 px-4 rounded-lg text-sm font-medium transition-all capitalize ${
+                    className={`py-2 px-4 rounded-lg text-sm font-medium transition-all capitalize ${
                       roastTier === tier
                         ? "bg-pink-500 text-white"
                         : "bg-white/10 text-gray-300 hover:bg-white/20"
@@ -164,9 +176,7 @@ export default function Home() {
             </div>
 
             {error && (
-              <div className="p-3 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 text-sm">
-                {error}
-                              </div>
+              <ErrorMessage message={error} onRetry={handleRetry} errorType={errorType} />
             )}
 
             <button
@@ -189,6 +199,14 @@ export default function Home() {
               )}
             </button>
           </form>
+          {(isLoading || isRoasting) && (
+            <div className="mt-6">
+              <LoadingSpinner
+                stage={isRoasting ? "roast" : "steam"}
+                message={isRoasting ? "Crafting the perfect roast..." : "Fetching your gaming secrets..."}
+              />
+            </div>
+          )}
         </div>
 
         {/* Roast Card */}
@@ -211,7 +229,7 @@ export default function Home() {
                 <button
                   onClick={() => navigator.clipboard.writeText(`"${roast}" — Roasted by Steam Library Roaster 🔥`)}
                   className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm transition-all"
-                                  >
+                >
                   📋 Copy
                 </button>
               </div>
@@ -225,7 +243,7 @@ export default function Home() {
             <h2 className="text-2xl font-bold mb-6 text-center">
               Your Library ({games.length} games)
             </h2>
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {games.slice(0, 12).map((game) => (
                 <div 
                   key={game.appid}
@@ -240,7 +258,7 @@ export default function Home() {
                   {game.playtime_2weeks && game.playtime_2weeks > 0 && (
                     <p className="text-green-400 text-xs mt-1">
                       {formatPlaytime(game.playtime_2weeks)} recently
-                                          </p>
+                    </p>
                   )}
                 </div>
               ))}
@@ -255,7 +273,7 @@ export default function Home() {
         )}
 
         {/* Footer */}
-                <div className="mt-16 text-center text-gray-400 text-sm">
+        <div className="mt-16 text-center text-gray-400 text-sm">
           <p>Built with ❤️ and 🔥 by David</p>
         </div>
       </div>
