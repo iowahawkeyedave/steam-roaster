@@ -14,5 +14,5 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           curl -X POST -H 'Content-Type: application/json' \
-          -d '{"content": "🔒 **Issue #${{ github.event.issue.number }}** closed by ${{ github.event.sender.login }}! <@&612779300630036487>\n${{ github.event.issue.html_url }}"}' \ \
+          -d '{"content": "🔒 **Issue #${{ github.event.issue.number }}** closed by ${{ github.event.sender.login }}! <@&612779300630036487>\n${{ github.event.issue.html_url }}"}' \ 
           "$DISCORD_WEBHOOK_URL"
