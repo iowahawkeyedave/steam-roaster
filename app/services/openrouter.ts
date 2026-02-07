@@ -32,9 +32,8 @@ function formatTimeVerbose(minutes: number): string {
   const days = Math.floor(hours / 24);
   if (days > 0) return `${days} day${days > 1 ? "s" : ""}`;
   if (hours > 0) return `${hours} hour${hours > 1 ? "s" : ""}`;
-  return `${minutes} minute${minutes > 1 ? "s" : ""}`;
+  return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
 }
-
 function calculateBacklog(games: SteamGame[]): number {
   return games.filter((g) => g.playtime_forever < 60).length;
 }
@@ -66,20 +65,21 @@ function getLibraryPersonality(games: SteamGame[]): string {
   const backlog = calculateBacklog(games);
   const mostPlayed = getMostPlayed(games);
   const totalPlaytime = getTotalPlaytime(games);
-  
-  if (!mostPlayed) return "empty";
-  
-  const mostPlayedPercent = (mostPlayed.playtime_forever / totalPlaytime) * 100;
-  const avgPlaytime = totalPlaytime / totalGames;
-  
-  // Determine personality type
+  // If there are no games or no playtime, return a safe "empty" personality
+  if (!mostPlayed || totalGames === 0 || totalPlaytime === 0) return "empty";
+
+  // Safely compute percentages/averages
+  const mostPlayedPercent = totalPlaytime > 0 ? (mostPlayed.playtime_forever / totalPlaytime) * 100 : 0;
+  const avgPlaytime = totalGames > 0 ? totalPlaytime / totalGames : 0;
+
+  // Determine personality type (all divisions guarded above)
   if (mostPlayedPercent > 50) {
     return "hyperfocus";
-  } else if (backlog / totalGames > 0.7) {
+  } else if (totalGames > 0 && backlog / totalGames > 0.7) {
     return "collector";
   } else if (avgPlaytime < 120) {
     return "butterfly";
-  } else if (playedGames / totalGames > 0.8) {
+  } else if (totalGames > 0 && playedGames / totalGames > 0.8) {
     return "completionist";
   } else {
     return "casual";
@@ -89,6 +89,10 @@ function getLibraryPersonality(games: SteamGame[]): string {
 // Fallback roasts if API fails
 const fallbackRoasts: Record<string, Record<string, string[]>> = {
   light: {
+    empty: [
+      "You don't have any games. The library is a blank canvas—full of potential, zero commitment.",
+      "No playtime detected. Either you're a legendary minimalist or Steam ran out of pixels for you.",
+    ],
     hyperfocus: [
       "You've spent {mostPlayedPercent}% of your gaming life in {mostPlayed}. The other {totalGames} games? Just there for moral support.",
       "{mostPlayed} is basically your second home. Those other games on your shelf are just decoration.",
@@ -111,6 +115,10 @@ const fallbackRoasts: Record<string, Record<string, string[]>> = {
     ],
   },
   medium: {
+    empty: [
+      "No games to roast—this profile is suspiciously clean. Either you're new or in hiding.",
+      "Your Steam library is quiet. Too quiet. Are you sharpening a controller instead of using it?",
+    ],
     hyperfocus: [
       "{mostPlayed} has consumed {mostPlayedPercent}% of your {totalTime} gaming time. You don't have a library, you have a shrine with {totalGames} digital dust collectors.",
       "You've spent more time in {mostPlayed} than most people spend on their hobbies. Those other {totalGames} games? Expensive icons on your desktop.",
@@ -133,6 +141,10 @@ const fallbackRoasts: Record<string, Record<string, string[]>> = {
     ],
   },
   brutal: {
+    empty: [
+      "No games and no time logged. Congratulations, you've managed to be invisible to Steam.",
+      "Zero playtime. You're the ghost of gamers yet to exist. Spooky and suspicious.",
+    ],
     hyperfocus: [
       "{mostPlayedPercent}% of your {totalTime} gaming life in ONE GAME. You own {totalGames} titles but you're basically a {mostPlayed} player with expensive digital wallpaper.",
       "Congratulations, you've turned a {totalGames}-game library into a single-game obsession. The other games aren't unplayed, they're UNWANTED.",
@@ -164,10 +176,12 @@ function getFallbackRoast(games: SteamGame[], tier: "light" | "medium" | "brutal
   const playedGames = getPlayedGames(games);
   const personality = getLibraryPersonality(games);
   
-  const avgHours = Math.floor(totalPlaytime / totalGames / 60);
-  const playedPercent = Math.round((playedGames / totalGames) * 100);
-  const unplayedPercent = 100 - playedPercent;
-  const mostPlayedPercent = mostPlayed ? Math.round((mostPlayed.playtime_forever / totalPlaytime) * 100) : 0;
+  const safeTotalGames = totalGames === 0 ? 1 : totalGames;
+  const safeTotalPlaytime = totalPlaytime === 0 ? 1 : totalPlaytime;
+  const avgHours = Math.floor(safeTotalPlaytime / safeTotalGames / 60);
+  const playedPercent = totalGames === 0 ? 0 : Math.round((playedGames / totalGames) * 100);
+  const unplayedPercent = totalGames === 0 ? 0 : 100 - playedPercent;
+  const mostPlayedPercent = mostPlayed && totalPlaytime > 0 ? Math.round((mostPlayed.playtime_forever / totalPlaytime) * 100) : 0;
   
   const roasts = fallbackRoasts[tier][personality];
   const roast = roasts[Math.floor(Math.random() * roasts.length)];
@@ -187,7 +201,8 @@ function getFallbackRoast(games: SteamGame[], tier: "light" | "medium" | "brutal
 
 export async function generateRoast(
   games: SteamGame[],
-  tier: "light" | "medium" | "brutal" = "medium"
+  tier: "light" | "medium" | "brutal" = "medium",
+  origin?: string
 ): Promise<RoastResponse> {
   try {
     const mostPlayed = getMostPlayed(games);
@@ -198,9 +213,11 @@ export async function generateRoast(
     const topGames = getTopGames(games, 5);
     const personality = getLibraryPersonality(games);
     
-    const avgHours = Math.floor(totalPlaytime / totalGames / 60);
-    const playedPercent = Math.round((playedGames / totalGames) * 100);
-    const mostPlayedPercent = mostPlayed ? Math.round((mostPlayed.playtime_forever / totalPlaytime) * 100) : 0;
+    const safeTotalGames = totalGames === 0 ? 1 : totalGames;
+    const safeTotalPlaytime = totalPlaytime === 0 ? 1 : totalPlaytime;
+    const avgHours = Math.floor(safeTotalPlaytime / safeTotalGames / 60);
+    const playedPercent = totalGames === 0 ? 0 : Math.round((playedGames / totalGames) * 100);
+    const mostPlayedPercent = mostPlayed && totalPlaytime > 0 ? Math.round((mostPlayed.playtime_forever / totalPlaytime) * 100) : 0;
 
     const tierInstructions: Record<string, string> = {
       light: "Be gentle and playful. Soft teasing, like a friend poking fun. Keep it warm and funny.",
@@ -209,6 +226,7 @@ export async function generateRoast(
     };
 
     const personalityDescriptions: Record<string, string> = {
+      empty: `No games or playtime detected. Nothing to roast — be gentle, you're a blank slate.` ,
       hyperfocus: `This player spends ${mostPlayedPercent}% of their time in ONE GAME (${mostPlayed?.name}). Classic hyperfocus behavior.`,
       collector: `Huge backlog syndrome. Only ${playedPercent}% of their ${totalGames} games are played. Sales addict.`,
       butterfly: `Short attention span. Averages only ${avgHours} hours per game. Never commits to anything.`,
@@ -258,12 +276,19 @@ Roast:`;
       try {
         console.log(`Trying model: ${model}`);
         
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        const frontendOrigin = origin || process.env.FRONTEND_ORIGIN || "http://localhost:3000";
+
         const response = await fetch(OPENROUTER_URL, {
           method: "POST",
           headers: {
             "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
             "Content-Type": "application/json",
-            "HTTP-Referer": "http://localhost:3000",
+            "HTTP-Referer": frontendOrigin,
+            // Also include standard Referer for compatibility
+            "Referer": frontendOrigin,
             "X-Title": "Steam Library Roaster",
           },
           body: JSON.stringify({
@@ -272,8 +297,10 @@ Roast:`;
             max_tokens: 200,
             temperature: 0.8,
           }),
+          signal: controller.signal,
         });
-
+        
+        clearTimeout(timeoutId);
         const responseText = await response.text();
         console.log(`Response from ${model}:`, responseText.substring(0, 200));
 
